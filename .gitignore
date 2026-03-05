@@ -60,4 +60,6 @@ CMakeLists.txt.user*
 /scripts
 *.exe
 *.bat
+!web-extension/setup/windows/*.bat
+!installer/windows/*.bat
 
