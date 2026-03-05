@@ -1,0 +1,134 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>LinkWidget</class>
+ <widget class="QWidget" name="LinkWidget">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>496</width>
+    <height>358</height>
+   </rect>
+  </property>
+  <layout class="QVBoxLayout" name="verticalLayout">
+   <property name="leftMargin">
+    <number>0</number>
+   </property>
+   <property name="topMargin">
+    <number>0</number>
+   </property>
+   <property name="rightMargin">
+    <number>0</number>
+   </property>
+   <property name="bottomMargin">
+    <number>0</number>
+   </property>
+   <item>
+    <widget class="QTabWidget" name="tabWidget">
+     <property name="font">
+      <font>
+       <weight>75</weight>
+       <bold>true</bold>
+      </font>
+     </property>
+     <property name="styleSheet">
+      <string notr="true">QTabWidget::pane { /* The tab widget frame */
+	border-top: 2px solid palette(mid);
+}
+
+QTabWidget::tab-bar {
+	left: 5px; /* move to the right by 5px */
+}
+
+/* Style the tab using the tab sub-control. Note that it reads QTabBar _not_ QTabWidget */
+QTabBar::tab {
+	height: 20px;
+	width: 200px;
+	color: palette(text);
+    background-color: palette(base);
+	border: 1px solid palette(text);
+	border-bottom-color: palette(mid); /* same as the pane color */
+	border-top-left-radius: 4px;
+	border-top-right-radius: 4px;
+	min-width: 8ex;
+	padding: 2px;
+}
+QTabBar::tab:selected {
+	background-color: palette(alternate-base);
+	border-color: palette(text);
+	border-bottom-color: palette(mid); /* same as pane color */
+}
+QTabBar::tab:hover:!selected {
+	background-color: palette(alternate-base);
+}
+
+QTabBar::tab:!selected {
+	margin-top: 2px; /* make non-selected tabs look smaller */
+	font: 8pt;
+}
+</string>
+     </property>
+     <property name="tabShape">
+      <enum>QTabWidget::Triangular</enum>
+     </property>
+     <property name="currentIndex">
+      <number>0</number>
+     </property>
+     <widget class="QWidget" name="linkTab">
+      <attribute name="title">
+       <string>Links</string>
+      </attribute>
+      <layout class="QVBoxLayout" name="verticalLayout_2">
+       <property name="leftMargin">
+        <number>0</number>
+       </property>
+       <property name="topMargin">
+        <number>0</number>
+       </property>
+       <property name="rightMargin">
+        <number>0</number>
+       </property>
+       <property name="bottomMargin">
+        <number>0</number>
+       </property>
+       <item>
+        <widget class="CheckableTableView" name="linkTableView"/>
+       </item>
+      </layout>
+     </widget>
+     <widget class="QWidget" name="contentTab">
+      <attribute name="title">
+       <string>Pictures and Media</string>
+      </attribute>
+      <layout class="QVBoxLayout" name="verticalLayout_3">
+       <property name="leftMargin">
+        <number>0</number>
+       </property>
+       <property name="topMargin">
+        <number>0</number>
+       </property>
+       <property name="rightMargin">
+        <number>0</number>
+       </property>
+       <property name="bottomMargin">
+        <number>0</number>
+       </property>
+       <item>
+        <widget class="CheckableTableView" name="contentTableView"/>
+       </item>
+      </layout>
+     </widget>
+    </widget>
+   </item>
+  </layout>
+ </widget>
+ <customwidgets>
+  <customwidget>
+   <class>CheckableTableView</class>
+   <extends>QTableView</extends>
+   <header>Widgets/CheckableTableView</header>
+  </customwidget>
+ </customwidgets>
+ <resources/>
+ <connections/>
+</ui>

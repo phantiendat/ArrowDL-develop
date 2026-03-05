@@ -1,0 +1,7 @@
+add_subdirectory(google-gumbo-parser)
+add_subdirectory(core)
+add_subdirectory(io)
+add_subdirectory(ipc)
+add_subdirectory(manual-test)
+add_subdirectory(torrent)
+add_subdirectory(widgets)

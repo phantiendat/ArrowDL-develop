@@ -1,0 +1,1282 @@
+/* - ArrowDL - Copyright (C) 2019-present Sebastien Vavassori
+ *
+ * This program is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU Lesser General Public
+ * License as published by the Free Software Foundation; either
+ * version 2.1 of the License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+ * Lesser General Public License for more details.
+ *
+ * You should have received a copy of the GNU Lesser General Public
+ * License along with this program; If not, see <http://www.gnu.org/licenses/>.
+ */
+
+#include "mainwindow.h"
+#include "ui_mainwindow.h"
+
+#include "about.h"
+
+#include <Constants>
+#include <Core/AbstractJob>
+#include <Core/Scheduler>
+#include <Core/JobTorrent>
+#include <Core/FileAccessManager>
+#include <Core/Format>
+#include <Core/Locale>
+#include <Core/Settings>
+#include <Core/StreamManager>
+#include <Core/Theme>
+#include <Core/UpdateChecker>
+#include <Torrent/Torrent>
+#include <Torrent/TorrentContext>
+#include <Torrent/TorrentMessage>
+#include <Dialogs/AddBatchDialog>
+#include <Dialogs/AddContentDialog>
+#include <Dialogs/AddStreamDialog>
+#include <Dialogs/AddTorrentDialog>
+#include <Dialogs/AddUrlsDialog>
+#include <Dialogs/BatchRenameDialog>
+#include <Dialogs/CompilerDialog>
+#include <Dialogs/EditionDialog>
+#include <Dialogs/HomeDialog>
+#include <Dialogs/InformationDialog>
+#include <Dialogs/PreferenceDialog>
+#include <Dialogs/StreamDialog>
+#include <Dialogs/TutorialDialog>
+#include <Dialogs/UpdateDialog>
+#include <Ipc/InterProcessCommunication>
+#include <Io/FileReader>
+#include <Io/FileWriter>
+#include <Widgets/QueueView>
+#include <Widgets/SystemTray>
+#include <Widgets/TorrentWidget>
+
+#include <QtCore/QDebug>
+#include <QtCore/QDir>
+#include <QtCore/QFile>
+#include <QtCore/QTimer>
+#include <QtCore/QMimeData>
+#include <QtCore/QSettings>
+#include <QtCore/QStandardPaths>
+#include <QtCore/QUrl>
+#include <QtGui/QAction>
+#include <QtGui/QClipboard>
+#include <QtGui/QCloseEvent>
+#include <QtGui/QDesktopServices>
+#include <QtGui/QDragEnterEvent>
+#include <QtGui/QDropEvent>
+#include <QtGui/QKeyEvent>
+#include <QtGui/QScreen>
+#include <QtWidgets/QAbstractButton>
+#include <QtWidgets/QPushButton>
+#include <QtWidgets/QCheckBox>
+#include <QtWidgets/QFileDialog>
+#include <QtWidgets/QInputDialog>
+#include <QtWidgets/QLabel>
+#include <QtWidgets/QMenu>
+#include <QtWidgets/QMessageBox>
+#include <QtWidgets/QSplitter>
+
+#ifdef USE_QT_WINEXTRAS
+#  include <QtWinExtras/QWinTaskbarButton>
+#  include <QtWinExtras/QWinTaskbarProgress>
+#endif
+
+
+
+MainWindow::MainWindow(QWidget *parent): QMainWindow(parent)
+  , ui(new Ui::MainWindow)
+  , m_scheduler(new Scheduler(this))
+  , m_streamManager(new StreamManager(this))
+  , m_fileAccessManager(new FileAccessManager(this))
+  , m_settings(new Settings(this))
+  , m_statusBarLabel(new QLabel(this))
+  , m_updateChecker(new UpdateChecker(this))
+  , m_systemTray(new SystemTray(this))
+{
+    ui->setupUi(this);
+
+    m_scheduler->setSettings(m_settings);
+
+    m_streamManager->setSettings(m_settings);
+
+    TorrentContext& torrentContext = TorrentContext::getInstance();
+    torrentContext.setSettings(m_settings);
+    torrentContext.setNetworkManager(m_scheduler->networkManager());
+
+    m_updateChecker->setNetworkManager(m_scheduler->networkManager());
+
+    Qt::WindowFlags flags = Qt::Window
+            | Qt::WindowTitleHint
+            | Qt::WindowSystemMenuHint
+            | Qt::WindowMinimizeButtonHint
+            | Qt::WindowMaximizeButtonHint
+            | Qt::WindowCloseButtonHint
+            // | Qt::WindowFullscreenButtonHint
+            // | Qt::WindowShadeButtonHint
+            // | Qt::WindowStaysOnTopHint
+            // | Qt::WindowStaysOnBottomHint
+            | Qt::WindowContextHelpButtonHint; // "What's this"
+    this->setWindowFlags(flags);
+    this->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Preferred);
+    this->setAcceptDrops(true);
+#ifdef Q_OS_OSX
+    this->setUnifiedTitleAndToolBarOnMac(true);
+#endif    
+#ifdef USE_QT_WINEXTRAS
+    m_winTaskbarButton = new QWinTaskbarButton(this);
+    m_winTaskbarButton->setWindow(this->windowHandle());
+    m_winTaskbarProgress = m_winTaskbarButton->progress();
+    m_winTaskbarProgress->setVisible(false);
+#endif
+
+    /* Connect the GUI to the Scheduler. */
+    ui->queueView->setModel(m_scheduler->model());
+
+    /* Connect the GUI to the TorrentContext. */
+    ui->torrentWidget->setTorrentContext(&torrentContext);
+
+    /* Connect the SceneManager to the MainWindow. */
+    /* The SceneManager centralizes the changes. */
+    connect(m_scheduler, SIGNAL(metricsChanged()), this, SLOT(onMetricsChanged()));
+    connect(m_scheduler, SIGNAL(jobFinished(AbstractJob*)), this, SLOT(onJobFinished(AbstractJob*)));
+    connect(m_scheduler, SIGNAL(jobRenamed(QString,QString,bool)), this, SLOT(onJobRenamed(QString,QString,bool)), Qt::QueuedConnection);
+
+    connect(ui->queueView, SIGNAL(dataChanged()), this, SLOT(onDataChanged()));
+    connect(ui->queueView, SIGNAL(selectionChanged()), this, SLOT(onSelectionChanged()));
+    connect(ui->queueView, SIGNAL(doubleClicked(AbstractJob*)), this, SLOT(openFile(AbstractJob*)));            
+
+    /* Torrent Context Manager */
+    connect(&torrentContext, &TorrentContext::changed, this, &MainWindow::onTorrentContextChanged);
+
+    /* File Access Manager */
+    m_fileAccessManager->setSettings(m_settings);
+
+    /* Connect the rest of the GUI widgets together (selection, focus, etc.) */
+    createActions();
+    createContextMenu();
+    createStatusbar();
+    createSystemTray();
+
+    readSettings();
+
+    refreshMenus();
+    refreshSplitter();
+    refreshTitleAndStatus();
+
+    Locale::applyLanguage(m_settings->language());
+    Theme::applyTheme(m_settings->theme());
+
+    ui->splitter->setStretchFactor(0, 1);
+    ui->splitter->setStretchFactor(1, 0);
+
+    if (!m_settings->isDontShowTutorialEnabled()) {
+        QTimer::singleShot(TIMEOUT_TUTORIAL, this, SLOT(showTutorial()));
+    }
+
+    /* Update Checker */
+    connect(m_updateChecker, SIGNAL(updateAvailableForConsole()), this, SLOT(onUpdateAvailableForConsole()));
+    m_updateChecker->checkForUpdates(m_settings);
+
+    // BUGFIX: After Qt6.6.1 the theme doesn't apply at launch time... calling it twice makes it work
+    Theme::applyTheme(m_settings->theme());
+}
+
+MainWindow::~MainWindow()
+{
+    delete ui;
+}
+
+/******************************************************************************
+ ******************************************************************************/
+void MainWindow::closeEvent(QCloseEvent *event)
+{
+    writeSettings();
+    m_systemTray->close();
+    event->accept();
+}
+
+void MainWindow::showEvent(QShowEvent *event)
+{
+#ifdef USE_QT_WINEXTRAS
+    m_winTaskbarButton->setWindow(windowHandle());
+#endif
+    event->accept();
+}
+
+void MainWindow::changeEvent(QEvent *event)
+{
+    if (event->type() == QEvent::WindowStateChange) {
+        if ( m_settings->isSystemTrayIconEnabled() &&
+             m_settings->isHideWhenMinimizedEnabled()
+             && isVisible() && isMinimized()
+             ) {
+            m_systemTray->hideParentWidget();
+        }
+    } else if (event->type() == QEvent::LanguageChange) {
+        ui->retranslateUi(this);
+        createContextMenu();
+        propagateToolTips(); // propagate tooltips translations
+        refreshTitleAndStatus();
+        refreshMenus();
+        refreshSplitter();
+    }
+    QMainWindow::changeEvent(event);
+}
+
+void MainWindow::keyPressEvent(QKeyEvent *event)
+{
+    if (event->key() == Qt::Key_Escape
+            && m_settings->isMinimizeEscapeEnabled()) {
+        setWindowState(Qt::WindowMinimized);
+    }
+}
+
+/******************************************************************************
+ ******************************************************************************/
+void MainWindow::dragEnterEvent(QDragEnterEvent *event)
+{
+    auto url = droppedUrl(event->mimeData());
+    if (url.isValid()) {
+        event->acceptProposedAction();
+    }
+}
+
+void MainWindow::dropEvent(QDropEvent *event)
+{
+    auto url = droppedUrl(event->mimeData());
+    if (url.isValid()) {
+        if (url.isLocalFile()) {
+            loadFile(url.toLocalFile());
+        } else {
+            addBatch(url);
+        }
+    }
+}
+
+/******************************************************************************
+ ******************************************************************************/
+void MainWindow::createActions()
+{
+    //! [0] File
+    connect(ui->actionHome, &QAction::triggered, this, &MainWindow::home);
+    //--
+    connect(ui->actionAddContent, SIGNAL(triggered()), this, SLOT(addContent()));
+    connect(ui->actionAddBatch,   SIGNAL(triggered()), this, SLOT(addBatch()));
+    connect(ui->actionAddStream,  SIGNAL(triggered()), this, SLOT(addStream()));
+    connect(ui->actionAddTorrent, SIGNAL(triggered()), this, SLOT(addTorrent()));
+    connect(ui->actionAddUrls,    SIGNAL(triggered()), this, SLOT(addUrls()));
+    // --
+    connect(ui->actionImportFromFile, SIGNAL(triggered()), this, SLOT(importFromFile()));
+    connect(ui->actionExportSelectedToFile, SIGNAL(triggered()), this, SLOT(exportSelectedToFile()));
+    // --
+    ui->actionQuit->setShortcuts(QKeySequence::Quit);
+    connect(ui->actionQuit, SIGNAL(triggered()), this, SLOT(close())); //&QWidget::close
+    //! [0]
+
+    //! [1] Edit
+    connect(ui->actionSelectAll, SIGNAL(triggered()), ui->queueView, SLOT(selectAll()));
+    connect(ui->actionSelectNone, SIGNAL(triggered()), ui->queueView, SLOT(selectNone()));
+    connect(ui->actionInvertSelection, SIGNAL(triggered()), ui->queueView, SLOT(invertSelection()));
+    connect(ui->actionSelectCompleted, SIGNAL(triggered()), ui->queueView, SLOT(selectCompleted()));
+    // --
+    connect(ui->actionCopy, SIGNAL(triggered()), this, SLOT(copy()));
+    //! [1]
+
+    //! [2] View
+    connect(ui->actionInformation, SIGNAL(triggered()), this, SLOT(showInformation()));
+    // --
+    connect(ui->actionOpenFile, SIGNAL(triggered()), this, SLOT(openFile()));
+    connect(ui->actionRenameFile, SIGNAL(triggered()), this, SLOT(renameFile()));
+    connect(ui->actionDeleteFile, SIGNAL(triggered()), this, SLOT(deleteFile()));
+    connect(ui->actionOpenDirectory, SIGNAL(triggered()), this, SLOT(openDirectory()));
+    // --
+    connect(ui->actionRemoveCompleted, SIGNAL(triggered()), this, SLOT(removeCompleted()));
+    connect(ui->actionRemoveSelected, SIGNAL(triggered()), this, SLOT(removeSelected()));
+    connect(ui->actionRemoveAll, SIGNAL(triggered()), this, SLOT(removeAll()));
+    //! [2]
+
+    //! [3] Download
+    connect(ui->actionResume, SIGNAL(triggered()), this, SLOT(resume()));
+    connect(ui->actionPause, SIGNAL(triggered()), this, SLOT(pause()));
+    connect(ui->actionCancel, SIGNAL(triggered()), this, SLOT(cancel()));
+    //--
+    connect(ui->actionUp, SIGNAL(triggered()), ui->queueView, SLOT(moveUp()));
+    connect(ui->actionTop, SIGNAL(triggered()), ui->queueView, SLOT(moveTop()));
+    connect(ui->actionDown, SIGNAL(triggered()), ui->queueView, SLOT(moveDown()));
+    connect(ui->actionBottom, SIGNAL(triggered()), ui->queueView, SLOT(moveBottom()));
+    //! [3]
+
+    //! [4]  Options
+    connect(ui->actionPreferences, SIGNAL(triggered()), this, SLOT(showPreferences()));
+    //! [4]
+
+    //! [5] Help
+    connect(ui->actionCheckForUpdates, SIGNAL(triggered()), this, SLOT(checkForUpdates()));
+    connect(ui->actionTutorial, SIGNAL(triggered()), this, SLOT(showTutorial()));
+
+    ui->actionAbout->setShortcuts(QKeySequence::HelpContents);
+    ui->actionAbout->setToolTip(tr("About %0").arg(STR_APPLICATION_NAME));
+    connect(ui->actionAbout, SIGNAL(triggered()), this, SLOT(about()));
+
+    ui->actionAboutQt->setShortcut(QKeySequence(Qt::CTRL + Qt::Key_F1));
+    ui->actionAboutQt->setToolTip(tr("About Qt"));
+    connect(ui->actionAboutQt, SIGNAL(triggered()), QApplication::instance(), SLOT(aboutQt()));
+
+    connect(ui->actionAboutCompiler, SIGNAL(triggered()), this, SLOT(aboutCompiler()));
+    connect(ui->actionAboutYTDLP, SIGNAL(triggered()), this, SLOT(aboutStream()));
+
+    ui->actionWebsite->setText(QString("%0").arg(STR_APPLICATION_WEBSITE).remove("https://").removeLast());
+    ui->actionWebsite->setToolTip(tr("Go to website"));
+    connect(ui->actionWebsite, SIGNAL(triggered()), this, SLOT(aboutWebsite()));
+    //! [5]
+
+    propagateToolTips();
+    propagateIcons();
+}
+
+void MainWindow::createContextMenu()
+{
+    // delete previous menu if any
+    QMenu *contextMenu = ui->queueView->contextMenu();
+    ui->queueView->setContextMenu(nullptr);
+    if (contextMenu) {
+        delete contextMenu;
+        contextMenu = nullptr;
+    }
+
+    contextMenu = new QMenu(this);
+
+    contextMenu->addAction(ui->actionInformation);
+    contextMenu->addSeparator();
+    contextMenu->addAction(ui->actionOpenFile);
+    contextMenu->addAction(ui->actionRenameFile);
+    contextMenu->addAction(ui->actionDeleteFile);
+    contextMenu->addAction(ui->actionOpenDirectory);
+    contextMenu->addSeparator();
+    contextMenu->addAction(ui->actionCopy);
+    contextMenu->addSeparator();
+    contextMenu->addAction(ui->actionResume);
+    contextMenu->addAction(ui->actionPause);
+    contextMenu->addAction(ui->actionCancel);
+    contextMenu->addSeparator();
+    contextMenu->addAction(ui->actionRemoveCompleted);
+    contextMenu->addAction(ui->actionRemoveSelected);
+    contextMenu->addAction(ui->actionRemoveAll);
+    contextMenu->addSeparator();
+    contextMenu->addAction(ui->actionSelectAll);
+    contextMenu->addAction(ui->actionInvertSelection);
+    contextMenu->addSeparator();
+    contextMenu->addAction(ui->actionTop);
+    contextMenu->addAction(ui->actionUp);
+    contextMenu->addAction(ui->actionDown);
+    contextMenu->addAction(ui->actionBottom);
+
+    QMenu *advanced = contextMenu->addMenu(tr("Advanced"));
+    advanced->addAction(ui->actionImportFromFile);
+    advanced->addAction(ui->actionExportSelectedToFile);
+
+    ui->queueView->setContextMenu(contextMenu);
+}
+
+void MainWindow::createStatusbar()
+{
+    this->statusBar()->addPermanentWidget(m_statusBarLabel);
+    this->statusBar()->addAction(ui->actionPreferences);
+}
+
+void MainWindow::createSystemTray()
+{    
+    m_systemTray->setSettings(m_settings);
+    m_systemTray->setupContextMenu(
+                ui->actionPreferences,
+                ui->actionQuit);
+}
+
+void MainWindow::propagateToolTips()
+{
+    // Propagate tooltip to whatsThis and statusTip
+    QList<QAction*> actions = this->findChildren<QAction*>();
+    for (auto *action : actions) {
+        if (!action->isSeparator()) {
+            auto str = action->toolTip();
+            action->setWhatsThis(str);
+            action->setStatusTip(str);
+        }
+    }
+}
+
+void MainWindow::propagateIcons()
+{
+    const QHash<QAction*, QString> hash = {
+
+        //! [0] File
+        {ui->actionHome                   , "home"},
+        //--
+        {ui->actionAddContent             , "add-content"},
+        {ui->actionAddBatch               , "add-batch"},
+        {ui->actionAddStream              , "add-stream"},
+        {ui->actionAddTorrent             , "add-torrent"},
+        {ui->actionAddUrls                , "add-urls"},
+        // --
+        {ui->actionImportFromFile         , "file-import"},
+        {ui->actionExportSelectedToFile   , "file-export"},
+        // --
+        // {ui->actionQuit   , ""},
+        //! [0]
+
+        //! [1] Edit
+        {ui->actionSelectAll              , "select-all"},
+        {ui->actionSelectNone             , "select-none"},
+        {ui->actionInvertSelection        , "select-invert"},
+        {ui->actionSelectCompleted        , "select-completed"},
+        // --
+        // {ui->actionCopy   , ""},
+        //! [1]
+
+        //! [2] View
+        {ui->actionInformation            , "info"},
+        // --
+        {ui->actionOpenFile               , "file-open"},
+        {ui->actionRenameFile             , "rename"},
+        {ui->actionDeleteFile             , "file-delete"},
+        {ui->actionOpenDirectory          , "directory-open"},
+        // --
+        {ui->actionRemoveCompleted        , "remove-completed"},
+        {ui->actionRemoveSelected         , "remove-downloaded"},
+        {ui->actionRemoveAll              , "remove-all"},
+        //! [2]
+
+        //! [3] Download
+        {ui->actionResume                 , "play-resume"},
+        {ui->actionPause                  , "play-pause"},
+        {ui->actionCancel                 , "play-stop"},
+        //--
+        {ui->actionUp                     , "move-up"},
+        {ui->actionTop                    , "move-top"},
+        {ui->actionDown                   , "move-down"},
+        {ui->actionBottom                 , "move-bottom"},
+        //! [3]
+
+        //! [4]  Options
+        {ui->actionPreferences            , "preference"},
+        //! [4]
+
+        //! [5] Help
+        // {ui->actionCheckForUpdates        , ""},
+        // {ui->actionTutorial               , ""},
+        {ui->actionAbout                  , "about"}
+        // {ui->actionAboutQt                , ""},
+        // {ui->actionAboutCompiler          , ""},
+        // {ui->actionAboutYTDLP             , ""}
+        //! [5]
+    };
+    Theme::setIcons(this, hash);
+}
+
+/******************************************************************************
+ ******************************************************************************/
+void MainWindow::importFromFile()
+{
+    const QString filePath = askOpenFileName(FileReader::supportedFormats());
+    if (!filePath.isEmpty()) {
+        setWorkingDirectory(filePath);
+        loadFile(filePath);
+    }
+}
+
+void MainWindow::exportSelectedToFile()
+{
+    const QString filePath = askSaveFileName(FileWriter::supportedFormats());
+    if (!filePath.isEmpty()) {
+        setWorkingDirectory(filePath);
+        saveFile(filePath);
+    }
+}
+
+void MainWindow::copy()
+{
+    const QString text = ui->queueView->selectionToClipboard();
+    QClipboard *clipboard = QApplication::clipboard();
+    clipboard->setText(text);
+}
+
+void MainWindow::showInformation()
+{
+    auto jobs = ui->queueView->selectedJobs();
+    if (jobs.count() == 1) {
+        InformationDialog dialog(jobs, this);
+        int answer = dialog.exec();
+        if (answer == QDialog::Accepted) {
+            m_scheduler->activateSnapshot();
+            refreshMenus();
+            refreshTitleAndStatus();
+        }
+    } else if (jobs.count() > 1) {
+        EditionDialog dialog(jobs, this);
+        int answer = dialog.exec();
+        if (answer == QDialog::Accepted) {
+            m_scheduler->activateSnapshot();
+            refreshMenus();
+            refreshTitleAndStatus();
+        }
+    }
+}
+
+void MainWindow::openFile()
+{
+    auto jobs = ui->queueView->selectedJobs();
+    if (!jobs.isEmpty()) {
+        auto job = jobs.first();
+        if (job->state() == AbstractJob::Completed) {
+            openFile(job);
+            return;
+        }
+    }
+}
+
+void MainWindow::openFile(AbstractJob *job)
+{
+    auto url = job->localFileUrl();
+    if (!QDesktopServices::openUrl(url)) {
+        QMessageBox::information(
+                    this, tr("Error"),
+                    QString("%0:\n\n%1").arg(
+                        tr("File not found"),
+                        url.toLocalFile()));
+    }
+}
+
+void MainWindow::renameFile()
+{
+    auto jobs = ui->queueView->selectedJobs();
+    if (jobs.count() == 1) {
+        ui->queueView->rename();
+    } else if (jobs.count() > 1) {
+        BatchRenameDialog dialog(jobs, this);
+        int answer = dialog.exec();
+        if (answer == QDialog::Accepted) {
+            m_scheduler->activateSnapshot();
+            refreshMenus();
+            refreshTitleAndStatus();
+        }
+    }
+}
+
+void MainWindow::deleteFile()
+{
+    auto jobs = ui->queueView->selectedJobs();
+    if (jobs.isEmpty()) {
+        return;
+    }
+    QString text = ui->queueView->selectionToString();
+
+    QMessageBox msgbox(this);
+    msgbox.setWindowTitle(tr("Remove Downloads"));
+    msgbox.setText(tr("Are you sure to remove %0 downloads?").arg(text));
+    msgbox.setIcon(QMessageBox::Icon::Question);
+    QAbstractButton *deleteButton = msgbox.addButton(tr("Delete"), QMessageBox::ActionRole);
+    msgbox.addButton(QMessageBox::Cancel);
+    msgbox.setDefaultButton(QMessageBox::Cancel);
+
+    msgbox.exec();
+    if (msgbox.clickedButton() == deleteButton) {
+        ui->queueView->moveSelectionToTrash();
+    }
+}
+
+void MainWindow::openDirectory()
+{
+    auto jobs = ui->queueView->selectedJobs();
+    if (jobs.isEmpty()) {
+        return;
+    }
+    auto job = jobs.first();
+    auto url = job->localDirUrl();
+    if (!QDesktopServices::openUrl(url)) {
+        QMessageBox::information(
+                    this, tr("Error"),
+                    QString("%0\n\n%1").arg(
+                        tr("Destination directory not found:"),
+                        url.toLocalFile()));
+    }
+}
+
+/******************************************************************************
+ ******************************************************************************/
+bool MainWindow::askConfirmation(const QString &text)
+{
+    if (m_settings->isConfirmRemovalEnabled()) {
+        QMessageBox msgbox(this);
+        msgbox.setWindowTitle(tr("Remove Downloads"));
+        msgbox.setText(tr("Are you sure to remove %0 downloads?").arg(text));
+        msgbox.setIcon(QMessageBox::Icon::Question);
+        msgbox.addButton(QMessageBox::Yes);
+        msgbox.addButton(QMessageBox::No);
+        msgbox.setDefaultButton(QMessageBox::No);
+
+        QCheckBox *cb = new QCheckBox(tr("Don't ask again"));
+        msgbox.setCheckBox(cb);
+        QObject::connect(cb, &QCheckBox::stateChanged, [this](int state){
+            if (static_cast<Qt::CheckState>(state) == Qt::CheckState::Checked) {
+                m_settings->setConfirmRemovalEnabled(false);
+            }
+        });
+
+        int response = msgbox.exec();
+        return response == QMessageBox::Yes;
+    }
+    return true;
+}
+
+void MainWindow::removeCompleted()
+{
+    if (askConfirmation(tr("completed"))) {
+        ui->queueView->removeCompleted();
+    }
+}
+
+void MainWindow::removeSelected()
+{
+    if (askConfirmation(tr("selected"))) {
+        ui->queueView->removeSelected();
+    }
+}
+
+void MainWindow::removeAll()
+{    
+    if (askConfirmation(tr("ALL"))) {
+        ui->queueView->removeAll();
+    }
+}
+
+/******************************************************************************
+ ******************************************************************************/
+void MainWindow::handleMessage(const QString &message)
+{
+    // qDebug() << Q_FUNC_INFO << message;
+    const QString cleaned = InterProcessCommunication::clean(message);
+    if (!cleaned.isEmpty()) {
+
+        if (InterProcessCommunication::isSingleUrl(cleaned)) {
+            const QUrl url = QUrl::fromUserInput(cleaned);
+            if (AddTorrentDialog::isTorrentUrl(url)) {
+                addTorrent(url);
+
+            } else if (AddStreamDialog::isStreamUrl(url, m_settings)) {
+                addStream(url);
+
+            } else {
+                // Assume the URL is a HTML page address,
+                // so that the program downloads the content
+                addContent(url);
+            }
+
+        } else if(InterProcessCommunication::isCommandOpenUrl(cleaned)) {
+            const QString str = InterProcessCommunication::getCurrentUrl(cleaned);
+            const QUrl url = QUrl::fromUserInput(str);
+            addContent(url);
+
+        } else if(InterProcessCommunication::isCommandDownloadLink(cleaned)) {
+            const QString str = InterProcessCommunication::getDownloadLink(cleaned);
+            const QUrl url = QUrl::fromUserInput(str);
+
+            if (AddTorrentDialog::isTorrentUrl(url)) {
+                addTorrent(url);
+
+            } else if (AddStreamDialog::isStreamUrl(url, m_settings)) {
+                addStream(url);
+
+            } else {
+                AddBatchDialog::quickDownload(url, m_scheduler);
+            }
+
+        } else if(InterProcessCommunication::isCommandOpenManager(cleaned)) {
+            // Try to popup the window.
+            // Rem: on Windows, it's not possible for an application
+            // to raise its main window itself, by design.
+            // See QWidget::activateWindow() doc, section "behavior under windows"
+            activateWindow();
+
+        } else if(InterProcessCommunication::isCommandShowPreferences(cleaned)) {
+            showPreferences();
+
+        } else {
+            // Otherwise, assume it's a list of resources
+            addContent(cleaned);
+        }
+    }
+}
+
+/******************************************************************************
+ ******************************************************************************/
+void MainWindow::home()
+{
+    HomeDialog dialog(this);
+    int reply = dialog.exec();
+    if (reply == static_cast<int>(HomeDialog::Content)) {
+        addContent();
+    } else if (reply == static_cast<int>(HomeDialog::Batch)) {
+        addBatch();
+    } else if (reply == static_cast<int>(HomeDialog::Stream)) {
+        addStream();
+    } else if (reply == static_cast<int>(HomeDialog::Torrent)) {
+        addTorrent();
+    } else if (reply == static_cast<int>(HomeDialog::Urls)) {
+        addUrls();
+    }
+}
+
+/******************************************************************************
+ ******************************************************************************/
+void MainWindow::addContent()
+{
+    // ask for the Url
+    QInputDialog dialog(this);
+    dialog.setWindowTitle(tr("Website URL"));
+    dialog.setLabelText(QString("%0  %1").arg(
+                            tr("URL of the HTML page:"),
+                            tr("(ex: %0)").arg(
+                                QLatin1String("\"https://www.site.com/folder/page\""))));
+    dialog.setTextValue(urlFromClipboard().toString());
+    dialog.setOkButtonText(tr("Start!"));
+    dialog.setCancelButtonText(tr("Cancel"));
+    dialog.setTextEchoMode(QLineEdit::Normal);
+    dialog.setInputMode(QInputDialog::TextInput);
+    dialog.setInputMethodHints(Qt::ImhUrlCharactersOnly);
+    dialog.setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Preferred);
+    dialog.adjustSize();
+    dialog.resize(DIALOG_WIDTH, dialog.height());
+
+    const int ret = dialog.exec();
+    const QUrl url = QUrl(dialog.textValue());
+    if (ret && !url.isEmpty()) {
+        addContent(url);
+    }
+}
+
+void MainWindow::addContent(const QUrl &url)
+{
+    AddContentDialog dialog(m_scheduler, m_settings, this);
+    dialog.loadUrl(url);
+    dialog.exec();
+}
+
+void MainWindow::addContent(const QString &message)
+{
+    // Note: if the message asks for the dialog (i.e. not a silent download),
+    // we must show the mainwindow first, if it was minimized.
+    // In this case, once the dialog closed, we hide the mainwindow.
+    bool wasHidden = !this->isVisible();
+
+    /// \todo decouple the dialog and the dialog's model,
+    /// in order to not call "dialog.exec()" when it's a silent download
+
+    AddContentDialog dialog(m_scheduler, m_settings, this);
+    bool willShowDialog = dialog.loadResources(message);
+
+    if (willShowDialog && wasHidden) {
+        m_systemTray->showParentWidget();
+    }
+
+    dialog.exec();
+
+    if (willShowDialog && wasHidden) {
+        m_systemTray->hideParentWidget();
+    }
+}
+
+/******************************************************************************
+ ******************************************************************************/
+void MainWindow::addBatch()
+{
+    addBatch(urlFromClipboard());
+}
+
+void MainWindow::addBatch(const QUrl &url)
+{
+    AddBatchDialog dialog(url, m_scheduler, m_settings, this);
+    dialog.exec();
+}
+
+/******************************************************************************
+ ******************************************************************************/
+void MainWindow::addStream()
+{
+    addStream(urlFromClipboard());
+}
+
+void MainWindow::addStream(const QUrl &url)
+{
+    AddStreamDialog dialog(url, m_scheduler, m_settings, this);
+    dialog.exec();
+}
+
+/******************************************************************************
+ ******************************************************************************/
+void MainWindow::addTorrent()
+{
+    addTorrent(urlFromClipboard());
+}
+
+void MainWindow::addTorrent(const QUrl &url)
+{
+    AddTorrentDialog dialog(url, m_scheduler, m_settings, this);
+    dialog.exec();
+}
+
+/******************************************************************************
+ ******************************************************************************/
+void MainWindow::addUrls()
+{
+    addUrls(fromClipboard());
+}
+
+void MainWindow::addUrls(const QString &text)
+{
+    AddUrlsDialog dialog(text, m_scheduler, m_settings, this);
+    dialog.exec();
+}
+
+/******************************************************************************
+ ******************************************************************************/
+void MainWindow::resume()
+{
+    for (auto job : ui->queueView->selectedJobs()) {
+        m_scheduler->resume(job);
+    }
+}
+
+void MainWindow::cancel()
+{
+    for (auto job : ui->queueView->selectedJobs()) {
+        m_scheduler->cancel(job);
+    }
+}
+
+void MainWindow::pause()
+{
+    for (auto job : ui->queueView->selectedJobs()) {
+        m_scheduler->pause(job);
+    }
+}
+
+void MainWindow::showPreferences()
+{
+    if (!this->isVisible()) {
+        m_systemTray->showParentWidget();
+    }
+    PreferenceDialog dialog(m_settings, this);
+    connect(&dialog, SIGNAL(checkUpdate()), this, SLOT(checkForUpdates()));
+    dialog.exec();
+}
+
+void MainWindow::showTutorial()
+{
+    TutorialDialog dialog(m_settings, this);
+    dialog.exec();
+}
+
+void MainWindow::onUpdateAvailableForConsole()
+{
+    checkForUpdates();
+}
+
+void MainWindow::checkForUpdates()
+{
+    disconnect(m_updateChecker, SIGNAL(updateAvailableForConsole()), this, SLOT(onUpdateAvailableForConsole()));
+    UpdateDialog dialog(m_updateChecker, this);
+    dialog.exec();
+}
+
+void MainWindow::about()
+{
+    QMessageBox msgBox(QMessageBox::NoIcon, tr("About %0").arg(STR_APPLICATION_NAME), aboutHtml());
+    msgBox.exec();
+}
+
+void MainWindow::aboutCompiler()
+{
+    CompilerDialog dialog(this);
+    dialog.exec();
+}
+
+void MainWindow::aboutStream()
+{
+    StreamDialog dialog(this);
+    dialog.exec();
+}
+
+void MainWindow::aboutWebsite()
+{
+    auto url = QUrl(STR_APPLICATION_WEBSITE);
+    QDesktopServices::openUrl(url);
+}
+
+/******************************************************************************
+ ******************************************************************************/
+void MainWindow::onDataChanged()
+{
+    refreshMenus();
+    refreshTitleAndStatus();
+    m_scheduler->activateSnapshot();
+}
+
+void MainWindow::onMetricsChanged()
+{
+    refreshTitleAndStatus();
+}
+
+void MainWindow::onJobFinished(AbstractJob *job)
+{
+    refreshMenus();
+    refreshTitleAndStatus();
+    m_systemTray->showBalloon(job->localFileName(), job->localFullFileName());
+}
+
+void MainWindow::onSelectionChanged()
+{
+    refreshMenus();
+    refreshSplitter();
+}
+
+void MainWindow::onJobRenamed(const QString &oldName, const QString &newName, bool success)
+{
+    if (!success) {
+        const QString comment = tr("The new name is already used or invalid.");
+        const QString message = newName.isEmpty()
+                ? QString("%0 \n\n%1").arg(
+                      tr("Can't rename \"%0\" as its initial name.").arg(oldName),
+                      comment)
+                : QString("%0\n"
+                          "   \"%1\"\n"
+                          "%2\n"
+                          "   \"%3\"\n\n"
+                          "%4").arg(
+                      tr("Can't rename"), oldName, tr("as"), newName, comment);
+        QMessageBox::information(this, tr("File Error"), message);
+    }
+}
+
+void MainWindow::onTorrentContextChanged()
+{
+    refreshTitleAndStatus();
+}
+
+void MainWindow::refreshTitleAndStatus()
+{
+    auto speed = m_scheduler->totalSpeed();
+    QString totalSpeed;
+    if (speed > 0) {
+        totalSpeed = QString("~%0").arg(Format::currentSpeedToString(speed));
+    }
+    auto completedCount = m_scheduler->completedJobs().count();
+    auto runningCount = m_scheduler->runningJobs().count();
+    auto failedCount = m_scheduler->failedJobs().count();
+    auto count = m_scheduler->count();
+    auto doneCount = completedCount + failedCount;
+
+    TorrentContext& torrentContext = TorrentContext::getInstance();
+    auto isTorrentEnabled = torrentContext.isEnabled();
+
+    auto windowTitle = QString("%0 %1/%2 - %3 v%4").arg(
+                totalSpeed,
+                QString::number(doneCount),
+                QString::number(count),
+                STR_APPLICATION_NAME,
+                STR_APPLICATION_VERSION).trimmed();
+
+    this->setWindowTitle(windowTitle);
+
+    auto title = tr("Done: %0 Running: %1 Total: %2").arg(
+                QString::number(doneCount),
+                QString::number(runningCount),
+                QString::number(count));
+
+    m_systemTray->setTitle(title);
+    m_systemTray->setToolTip(windowTitle);
+
+    auto state = tr("%0 of %1 (%2), %3 running  %4 | Torrent: %5").arg(
+                QString::number(doneCount),
+                QString::number(count),
+                QString::number(count),
+                QString::number(runningCount),
+                totalSpeed,
+                isTorrentEnabled ? tr("active") : tr("inactive"));
+
+    m_statusBarLabel->setText(state);
+
+#ifdef USE_QT_WINEXTRAS
+    if (m_winTaskbarProgress) {
+        if (runningCount > 0) {
+            m_winTaskbarProgress->setVisible(true);
+            m_winTaskbarProgress->setRange(0, count);
+            m_winTaskbarProgress->setValue(doneCount);
+            m_winTaskbarProgress->resume();
+        } else if (failedCount > 0) {
+            m_winTaskbarProgress->setVisible(true);
+            m_winTaskbarProgress->setRange(0, 100);
+            m_winTaskbarProgress->setValue(100);
+            m_winTaskbarProgress->stop();
+        } else {
+            m_winTaskbarProgress->setVisible(false);
+        }
+    }
+#endif
+}
+
+void MainWindow::refreshMenus()
+{
+    auto jobs = m_scheduler->jobs();
+    auto selectedJobs = ui->queueView->selectedJobs();
+
+    const bool hasJobs = !jobs.isEmpty();
+    const bool hasSelection = !selectedJobs.isEmpty();
+    const bool hasOnlyOneSelected = selectedJobs.count() == 1;
+
+    bool hasOnlyCompletedSelected = hasSelection;
+    for (auto job : selectedJobs) {
+        if (job->state() != AbstractJob::Completed) {
+            hasOnlyCompletedSelected = false;
+            break;
+        }
+    }
+
+    bool hasResumableSelection = false;
+    bool hasPausableSelection = false;
+    bool hasCancelableSelection = false;
+    for (auto job : selectedJobs) {
+        if (job->isResumable()) {
+            hasResumableSelection = true;
+        }
+        if (job->isPausable()) {
+            hasPausableSelection = true;
+        }
+        if (job->isCancelable()) {
+            hasCancelableSelection = true;
+        }
+    }
+
+    //! [0] File
+    //ui->actionImportFromFile->setEnabled(hasSelection);
+    ui->actionExportSelectedToFile->setEnabled(hasSelection);
+    // --
+    //ui->actionExit->setEnabled(hasSelection);
+    //! [0]
+
+    //! [1] Edit
+    //ui->actionSelectAll->setEnabled(hasSelection);
+    ui->actionSelectNone->setEnabled(hasSelection);
+    //ui->actionInvertSelection->setEnabled(hasSelection);
+    //ui->actionSelectCompleted->setEnabled(hasSelection);
+    // --
+    ui->actionCopy->setEnabled(hasSelection);
+    //! [1]
+
+    //! [2] View
+    ui->actionInformation->setEnabled(hasSelection);
+    // --
+    ui->actionOpenFile->setEnabled(hasOnlyCompletedSelected);
+    ui->actionRenameFile->setEnabled(hasSelection);
+    ui->actionDeleteFile->setEnabled(hasOnlyCompletedSelected);
+    ui->actionOpenDirectory->setEnabled(hasOnlyOneSelected);
+    // --
+    ui->actionRemoveCompleted->setEnabled(hasJobs);
+    ui->actionRemoveSelected->setEnabled(hasSelection);
+    // ui->actionRemoveAll->setEnabled(hasJobs); // always enabled
+    //! [2]
+
+    //! [3] Download
+    //--
+    ui->actionResume->setEnabled(hasResumableSelection);
+    ui->actionPause->setEnabled(hasPausableSelection);
+    ui->actionCancel->setEnabled(hasCancelableSelection);
+    //--
+    ui->actionUp->setEnabled(hasSelection);
+    ui->actionTop->setEnabled(hasSelection);
+    ui->actionDown->setEnabled(hasSelection);
+    ui->actionBottom->setEnabled(hasSelection);
+    //! [3]
+
+    //! [4]  Options
+    //ui->actionPreferences->setEnabled(hasSelection);
+    //! [4]
+
+    //! [5] Help
+    //ui->actionAbout->setEnabled(hasSelection);
+    //ui->actionAboutQt->setEnabled(hasSelection);
+    //ui->actionAboutCompiler->setEnabled(hasSelection);
+    //! [5]
+}
+
+void MainWindow::refreshSplitter()
+{
+    auto jobs = ui->queueView->selectedJobs();
+    if (jobs.count() == 1) {
+        auto job = jobs.first();
+        JobTorrent *jobTorrent = dynamic_cast<JobTorrent*>(job);
+        ui->torrentWidget->setTorrent(jobTorrent ? jobTorrent->torrent() : nullptr);
+    } else {
+        ui->torrentWidget->setTorrent(nullptr);
+    }
+    if (!ui->torrentWidget->isEmpty() /*&& option.showable */) {
+        ui->torrentWidget->show();
+    } else {
+        ui->torrentWidget->hide();
+    }
+}
+
+/******************************************************************************
+ ******************************************************************************/
+void MainWindow::setWorkingDirectory(const QString &path)
+{
+    const QFileInfo fi(path); // in case it's a file
+    const QString directory =  fi.isFile() ? fi.absolutePath() : fi.absoluteFilePath();
+    QDir dir(directory);
+    if (!dir.exists()) {
+        dir = QDir(QStandardPaths::writableLocation(QStandardPaths::DocumentsLocation));
+    }
+    if (!dir.exists()) {
+        dir.setPath(QDir::homePath());
+    }
+    QDir::setCurrent(dir.absolutePath());
+}
+
+/******************************************************************************
+ ******************************************************************************/
+void MainWindow::readSettings()
+{
+    QSettings settings;
+    if ( !isMaximized() ) {
+        const QPoint defaultPosition(DEFAULT_X, DEFAULT_Y);
+        const QSize defaultSize(DEFAULT_WIDTH, DEFAULT_HEIGHT);
+        QPoint position = settings.value("Position", defaultPosition).toPoint();
+        QSize size = settings.value("Size", defaultSize).toSize();
+
+        QRect availableGeometry(0, 0, 0, 0);
+        for (auto screen : QApplication::screens()) {
+            availableGeometry = availableGeometry.united(screen->availableGeometry());
+        }
+
+        if (!availableGeometry.intersects(QRect(position, size))) {
+            position = defaultPosition;
+            size = defaultSize;
+        }
+        this->move(position);
+        this->resize(size);
+    }
+    setWindowState(settings.value("WindowState", 0).value<Qt::WindowStates>());
+    setWorkingDirectory(settings.value("WorkingDirectory").toString());
+
+    restoreState(settings.value("WindowToolbarState").toByteArray());
+    ui->splitter->restoreState(settings.value("SplitterSizes").toByteArray());
+    ui->queueView->restoreState(settings.value("DownloadQueueState").toByteArray());
+    ui->torrentWidget->restoreState(settings.value("TorrentState").toByteArray());
+
+    m_settings->readSettings();
+}
+
+void MainWindow::writeSettings()
+{
+    QSettings settings;
+    if( !(isMaximized() || isFullScreen()) ) {
+        settings.setValue("Position", this->pos());
+        settings.setValue("Size", this->size());
+    }
+    settings.setValue("WindowState", static_cast<int>(this->windowState())); // minimized, maximized, active, fullscreen...
+    settings.setValue("WorkingDirectory", QDir::currentPath());
+
+    settings.setValue("WindowToolbarState", saveState());
+    settings.setValue("SplitterSizes", ui->splitter->saveState());
+    settings.setValue("DownloadQueueState", ui->queueView->saveState());
+    settings.setValue("TorrentState", ui->torrentWidget->saveState());
+
+    // --------------------------------------------------------------
+    // Write also the current version of application in the settings,
+    // because it might be used by 3rd-party update manager softwares like
+    // FileHippo or Google Updater (aka gup).
+    // --------------------------------------------------------------
+    settings.setValue("Version", STR_APPLICATION_VERSION );
+
+    m_settings->writeSettings();
+}
+
+/******************************************************************************
+ ******************************************************************************/
+inline QUrl MainWindow::droppedUrl(const QMimeData* mimeData) const
+{
+    if ( mimeData->hasUrls() &&
+         mimeData->urls().count() == 1) { // Accept only one file at a time
+        return mimeData->urls().first();
+
+    } if (!mimeData->hasUrls() && mimeData->hasText()) {
+        auto supposedFilePath = mimeData->text();
+        return QUrl(supposedFilePath);
+    }
+    return {};
+}
+
+inline QString MainWindow::fromClipboard() const
+{
+    const QClipboard *clipboard = QApplication::clipboard();
+    const QMimeData *mimeData = clipboard->mimeData();
+    return mimeData->hasText() ? mimeData->text() : ""_L1;
+}
+
+inline QUrl MainWindow::urlFromClipboard() const
+{
+    return QUrl(fromClipboard());
+}
+
+/******************************************************************************
+ ******************************************************************************/
+QString MainWindow::askOpenFileName(const QString &fileFilter, const QString &title)
+{
+    return QFileDialog::getOpenFileName(this, title, QDir::currentPath(), fileFilter);
+}
+
+QString MainWindow::askSaveFileName(const QString &fileFilter, const QString &title)
+{
+    return QFileDialog::getSaveFileName(this, title, QDir::currentPath(), fileFilter);
+}
+
+/******************************************************************************
+ ******************************************************************************/
+bool MainWindow::saveFile(const QString &path)
+{
+    FileWriter writer(path);
+    if (!writer.write(m_scheduler)) {
+        qWarning() << tr("Can't save file.");
+        QMessageBox::warning(this, tr("Error"),
+                             QString("%0\n%1").arg(
+                                 tr("Can't save file %0:").arg(path),
+                                 writer.errorString()));
+        return false;
+    }
+    this->refreshTitleAndStatus();
+    this->refreshMenus();
+    this->statusBar()->showMessage(tr("File saved"), TIMEOUT_STATUSBAR.count());
+    return true;
+}
+
+/******************************************************************************
+ ******************************************************************************/
+bool MainWindow::loadFile(const QString &path)
+{
+    FileReader reader(path);
+    if (!reader.read(m_scheduler)) {
+        qWarning() << tr("Can't load file.");
+        QMessageBox::warning(this, tr("Error"),
+                             QString("%0\n%1").arg(
+                                 tr("Can't load file %0:").arg(path),
+                                 reader.errorString()));
+        return false;
+    }
+    this->refreshTitleAndStatus();
+    this->refreshMenus();
+    this->statusBar()->showMessage(tr("File loaded"), TIMEOUT_STATUSBAR_LONG.count());
+    return true;
+}

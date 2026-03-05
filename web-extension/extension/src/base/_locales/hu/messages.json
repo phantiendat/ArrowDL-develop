@@ -1,0 +1,187 @@
+{
+  "extensionName": {
+    "message": "ArrowDL - Arrow Downloader",
+    "description": "Name of the extension, displayed in the web store. Should not exceed 45 characters."
+  },
+  "extensionDescription": {
+    "message": "A képek, torrentek, videók és zene letöltésének egyszerű módja bármely webhelyről",
+    "description": "Description of the extension, displayed in the web store. Should not exceed 132 characters."
+  },
+
+
+  "contextMenuSavePage": {
+    "message": "Oldal mentése",
+    "description": "Title of the context menu for Save page"
+  },
+  "contextMenuSaveFrame": {
+    "message": "Keret mentése",
+    "description": "Title of the context menu for Save frame"
+  },
+  "contextMenuSaveSelection": {
+    "message": "Kijelőlés mentése",
+    "description": "Title of the context menu for Save selection"
+  },
+  "contextMenuSaveLink": {
+    "message": "Link mentése",
+    "description": "Title of the context menu for Save link"
+  },
+  "contextMenuSaveEditable": {
+    "message": "Szerkeszthető mentése",
+    "description": "Title of the context menu for Save editable"
+  },
+  "contextMenuSaveImage": {
+    "message": "Kép mentése",
+    "description": "Title of the context menu for Save image"
+  },
+  "contextMenuSaveVideo": {
+    "message": "Videó mentése",
+    "description": "Title of the context menu for Save video"
+  },
+  "contextMenuSaveAudio": {
+    "message": "Audio mentése",
+    "description": "Title of the context menu for Save audio"
+  },
+  "contextMenuSaveLauncher": {
+    "message": "Futtatható mentése",
+    "description": "Title of the context menu for Save launcher"
+  },
+
+
+  "popupDownload": {
+    "message": "Letöltés...",
+    "description": "Title of the context menu for Download..."
+  },
+  "popupDownloadLinks": {
+    "message": "Linkek letöltése",
+    "description": "Title of the context menu for Download links"
+  },
+  "popupDownloadLinksPaused": {
+    "message": "Linkek letöltése (megállítva)",
+    "description": "Title of the context menu for Download links (paused)"
+  },
+  "popupDownloadContent": {
+    "message": "Tartalom letöltése",
+    "description": "Title of the context menu for Download content"
+  },
+  "popupDownloadContentPaused": {
+    "message": "Tartalom letöltése (megállítva)",
+    "description": "Title of the context menu for Download content (paused)"
+  },
+  "popupOpen": {
+    "message": "ArrowDL megnyitása!",
+    "description": "Title of the context menu for Open ArrowDL"
+  },
+  "popupPreferences": {
+    "message": "Tulajdonságok...",
+    "description": "Title of the context menu for Preferences..."
+  },
+  "popupOptions": {
+    "message": "Opciók...",
+    "description": "Title of the context menu for Options..."
+  },
+  "popupVisitWebsite": {
+    "message": "ArrowDL weboldal felkeresése",
+    "description": "Title of the context menu for Visit ArrowDL website"
+  },
+
+  "popupError": {
+    "message": "Hiba",
+    "description": "Title of Error"
+  },
+  "popupError1": {
+    "message": "Az alkalmazás nem található",
+    "description": "Error message 1"
+  },
+  "popupError2": {
+    "message": "Ellenőrzéshez nyisd meg az \"Opciókat\"",
+    "description": "Error message 2"
+  },
+  "popupRemark": {
+    "message": "Megjegyzés",
+    "description": "Title of Remark"
+  },
+  "popupRemark1": {
+    "message": "Inkognitó mód kikapcsolva <br /> letöltési tuljdonságok",
+    "description": "Remark message 1"
+  },
+
+
+  "optionsMainTitle": {
+    "message": "Opciók",
+    "description": "Title of Options"
+  },
+  "optionsToolbarMenu": {
+    "message": "Eszköztár menü",
+    "description": "Title of Toolbar Menu"
+  },
+  "optionsShowSimpleMenu": {
+    "message": "Egyszerű menü megjelenítése (mindig kérdezze meg, mit kell tennie)",
+    "description": "Title of Show simple menu"
+  },
+  "optionsShowFullMenu": {
+    "message": "Tejes menü megjelenítése",
+    "description": "Title of Show full menu"
+  },
+  "optionsShowFullMenuDescription": {
+    "message": "Egyszerű letöltés, és azonnali letöltés:",
+    "description": "Description of Show full menu"
+  },
+  "optionsChoiceGetLinks": {
+    "message": "Linkek",
+    "description": "Title of Links"
+  },
+  "optionsChoiceGetContent": {
+    "message": "Tartalom",
+    "description": "Title of Content"
+  },
+  "optionsChoiceStartPaused": {
+    "message": "Indítás szüneteltetve",
+    "description": "Title of Start paused"
+  },
+  "optionsAbout": {
+    "message": "Névjegy",
+    "description": "Title of About"
+  },
+  "optionsInstall": {
+    "message": "Telepítés",
+    "description": "Title of Installation"
+  },
+  "optionsInstallMessage": {
+    "message": "Az alábbi hivatkozásra kattintva telepítheted az alkalmazást az operációs rendszeredhez.",
+    "description": "Tells the user how to install the application."
+  },
+  "optionsInstallMessageLink": {
+    "message": "ArrowDL weboldal felkeresése",
+    "description": "Link to the application URL."
+  },
+  "optionsRefresh": {
+    "message": "Információ frissítése $SYMBOL$",
+    "description": "Title of Refresh information",
+    "placeholders": {
+      "symbol" : {
+        "content" : "$1"
+      }
+    }
+  },
+
+  "optionsStatus": {
+    "message": "Állapot:",
+    "description": "Title of Status"
+  },
+  "optionsOk": {
+    "message": "Ok",
+    "description": "Title of Ok"
+  },
+  "optionsDetectedPath": {
+    "message": "Észlelt útvonal:",
+    "description": "Title of Detected path"
+  },
+  "optionsError": {
+    "message": "Hiba: Nem található az indító",
+    "description": "Title of Error"
+  },
+  "optionsInstructions": {
+    "message": "Kövesd az alábbi utasításokat.",
+    "description": "Title of Instructions"
+  }
+}

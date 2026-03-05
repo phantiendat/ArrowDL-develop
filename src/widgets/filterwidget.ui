@@ -1,0 +1,189 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>FilterWidget</class>
+ <widget class="QWidget" name="FilterWidget">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>550</width>
+    <height>157</height>
+   </rect>
+  </property>
+  <property name="styleSheet">
+   <string notr="true">/* QGroupBox exposes the title as QString (even if internally its probably a QLabel) */
+QGroupBox {
+	font-weight: bold;
+}</string>
+  </property>
+  <layout class="QVBoxLayout" name="verticalLayout" stretch="1,0">
+   <property name="leftMargin">
+    <number>0</number>
+   </property>
+   <property name="topMargin">
+    <number>0</number>
+   </property>
+   <property name="rightMargin">
+    <number>0</number>
+   </property>
+   <property name="bottomMargin">
+    <number>0</number>
+   </property>
+   <item>
+    <widget class="QGroupBox" name="checkBoxGroup">
+     <property name="title">
+      <string>Filters</string>
+     </property>
+     <layout class="QGridLayout" name="gridLayout">
+      <item row="2" column="0">
+       <widget class="QCheckBox" name="checkBoxApplication">
+        <property name="text">
+         <string notr="true">Application (exe, xpi...)</string>
+        </property>
+       </widget>
+      </item>
+      <item row="1" column="0">
+       <widget class="QCheckBox" name="checkBoxDocument">
+        <property name="text">
+         <string notr="true">Documents (pdf, odf...)</string>
+        </property>
+       </widget>
+      </item>
+      <item row="0" column="0">
+       <widget class="QCheckBox" name="checkBoxAll">
+        <property name="text">
+         <string notr="true">All Files</string>
+        </property>
+       </widget>
+      </item>
+      <item row="2" column="1">
+       <widget class="QCheckBox" name="checkBoxAudio">
+        <property name="text">
+         <string notr="true">Audio (mp3, wav...)</string>
+        </property>
+       </widget>
+      </item>
+      <item row="0" column="2">
+       <widget class="QCheckBox" name="checkBoxArchive">
+        <property name="text">
+         <string notr="true">Archives (zip, rar...)</string>
+        </property>
+       </widget>
+      </item>
+      <item row="1" column="2">
+       <widget class="QCheckBox" name="checkBoxImageJpeg">
+        <property name="text">
+         <string notr="true">Images JPEG</string>
+        </property>
+       </widget>
+      </item>
+      <item row="1" column="1">
+       <widget class="QCheckBox" name="checkBoxVideo">
+        <property name="text">
+         <string notr="true">Videos (mpeg, avi...)</string>
+        </property>
+       </widget>
+      </item>
+      <item row="0" column="1">
+       <widget class="QCheckBox" name="checkBoxImage">
+        <property name="text">
+         <string notr="true">Images (jpg, png...)</string>
+        </property>
+       </widget>
+      </item>
+      <item row="2" column="2">
+       <widget class="QCheckBox" name="checkBoxImagePng">
+        <property name="text">
+         <string notr="true">Images PNG</string>
+        </property>
+       </widget>
+      </item>
+     </layout>
+    </widget>
+   </item>
+   <item>
+    <widget class="QGroupBox" name="fastFilteringGroup">
+     <property name="title">
+      <string>Fast Filtering</string>
+     </property>
+     <layout class="QHBoxLayout" name="horizontalLayout" stretch="1,0,0">
+      <item>
+       <widget class="ComboBox" name="fastFilteringComboBox">
+        <property name="editable">
+         <bool>true</bool>
+        </property>
+        <property name="currentText">
+         <string notr="true">^.*\.(java|f77|c(?:pp))$</string>
+        </property>
+        <item>
+         <property name="text">
+          <string notr="true">^.*\.(java|f77|c(?:pp))$</string>
+         </property>
+        </item>
+        <item>
+         <property name="text">
+          <string notr="true">^.*\.(htm(l?))$</string>
+         </property>
+        </item>
+        <item>
+         <property name="text">
+          <string notr="true">^.*\.(js)$</string>
+         </property>
+        </item>
+       </widget>
+      </item>
+      <item>
+       <widget class="QToolButton" name="fastFilteringTipToolButton">
+        <property name="toolTip">
+         <string>Fast Filtering Tips...</string>
+        </property>
+        <property name="icon">
+         <iconset resource="../resources.qrc">
+          <normaloff>:/resources/icons/default/scalable/actions/help.svg</normaloff>:/resources/icons/default/scalable/actions/help.svg</iconset>
+        </property>
+        <property name="autoRaise">
+         <bool>true</bool>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <widget class="QCheckBox" name="fastFilteringOnlyCheckBox">
+        <property name="text">
+         <string>Disable other filters</string>
+        </property>
+       </widget>
+      </item>
+     </layout>
+    </widget>
+   </item>
+  </layout>
+ </widget>
+ <customwidgets>
+  <customwidget>
+   <class>ComboBox</class>
+   <extends>QComboBox</extends>
+   <header>Widgets/ComboBox</header>
+  </customwidget>
+ </customwidgets>
+ <resources>
+  <include location="../resources.qrc"/>
+ </resources>
+ <connections>
+  <connection>
+   <sender>fastFilteringOnlyCheckBox</sender>
+   <signal>toggled(bool)</signal>
+   <receiver>checkBoxGroup</receiver>
+   <slot>setDisabled(bool)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>448</x>
+     <y>140</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>344</x>
+     <y>92</y>
+    </hint>
+   </hints>
+  </connection>
+ </connections>
+</ui>

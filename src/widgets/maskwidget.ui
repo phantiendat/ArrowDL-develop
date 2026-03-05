@@ -1,0 +1,95 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>MaskWidget</class>
+ <widget class="QWidget" name="MaskWidget">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>229</width>
+    <height>22</height>
+   </rect>
+  </property>
+  <layout class="QHBoxLayout" name="horizontalLayout">
+   <property name="sizeConstraint">
+    <enum>QLayout::SetMinimumSize</enum>
+   </property>
+   <property name="leftMargin">
+    <number>0</number>
+   </property>
+   <property name="topMargin">
+    <number>0</number>
+   </property>
+   <property name="rightMargin">
+    <number>0</number>
+   </property>
+   <property name="bottomMargin">
+    <number>0</number>
+   </property>
+   <item>
+    <widget class="ComboBox" name="comboBox">
+     <property name="minimumSize">
+      <size>
+       <width>200</width>
+       <height>0</height>
+      </size>
+     </property>
+     <property name="editable">
+      <bool>true</bool>
+     </property>
+     <property name="currentText">
+      <string notr="true">*url*\*subdirs*\*name*.*ext*</string>
+     </property>
+     <item>
+      <property name="text">
+       <string notr="true">*url*\*subdirs*\*name*.*ext*</string>
+      </property>
+     </item>
+     <item>
+      <property name="text">
+       <string notr="true">*name*.*ext*</string>
+      </property>
+     </item>
+     <item>
+      <property name="text">
+       <string notr="true">*flatsubdirs*</string>
+      </property>
+     </item>
+     <item>
+      <property name="text">
+       <string notr="true">*curl*</string>
+      </property>
+     </item>
+    </widget>
+   </item>
+   <item>
+    <widget class="QToolButton" name="tipButton">
+     <property name="toolTip">
+      <string>Renaming tags reference table</string>
+     </property>
+     <property name="text">
+      <string>Renaming tags reference table</string>
+     </property>
+     <property name="icon">
+      <iconset resource="../resources.qrc">
+       <normaloff>:/resources/icons/default/scalable/actions/mask.svg</normaloff>:/resources/icons/default/scalable/actions/mask.svg</iconset>
+     </property>
+     <property name="autoRaise">
+      <bool>true</bool>
+     </property>
+    </widget>
+   </item>
+  </layout>
+ </widget>
+ <customwidgets>
+  <customwidget>
+   <class>ComboBox</class>
+   <extends>QComboBox</extends>
+   <header>Widgets/ComboBox</header>
+  </customwidget>
+ </customwidgets>
+ <resources>
+  <include location="../resources.qrc"/>
+ </resources>
+ <connections/>
+</ui>

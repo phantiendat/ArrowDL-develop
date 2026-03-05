@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <meta http-equiv="content-type" content="text/html; charset=utf-8"/>
+        <title>Popup</title>
+        <link rel="stylesheet" href="style/common.css" type="text/css"/>
+        <link rel="stylesheet" href="style/popup.css" type="text/css"/>
+        <script defer type="text/javascript" src="/popup.js"> </script>
+    </head>
+    <body>
+        <ul>
+            <li id="button-start">
+                <img srcset="style/start_16x16.png, style/start_16x16@2x.png 2x" />
+                <span id="button-download">Download...</span>
+            </li>
+            <li id="button-immediate-download">
+                <img srcset="style/start_16x16.png, style/start_16x16@2x.png 2x" />
+                <span id="button-immediate-download-label">Download media</span>
+            </li>
+            <li class="separator">
+                <hr/>
+            </li>
+            <li id="button-manager">
+                <img srcset="style/manager_16x16.png, style/manager_16x16@2x.png 2x" />
+                <span id="button-open">Open ArrowDL</span>
+            </li>
+            <li class="separator">
+                <hr/>
+            </li>
+            <li id="button-preference">
+                <span class="icon icon-settings"/>
+                <span id="button-preferences">Preferences...</span>
+            </li>
+            <li id="button-options-page">
+                <span class="icon icon-settings"/>
+                <span id="button-options">Options...</span>
+            </li>
+            <li class="separator">
+                <hr/>
+            </li>
+            <li id="button-website" class="website">
+                <span><a id="website-link" href="https://www.arrow-dl.com/">Visit ArrowDL website</a></span>
+            </li>
+            <div id="warning-area" style="display:none;">
+                <br/>
+                <div class="alert alert-danger">
+                    <p>
+                    <strong><span id="msg-error">Error</span></strong>
+                    <br />
+                    <span id="msg-error-1">Can't find the application</span>
+                    <br />
+                    <span id="msg-error-2">Open 'Options' to check</span>
+                    </p>
+                </div>
+            </div>
+            <div id="warning-area-incognito" style="display:none;">
+                <br/>
+                <div class="alert alert-warning">
+                    <p>
+                    <strong><span id="msg-remark">Remark</span></strong>
+                    <br />
+                    <span id="msg-remark-1">Incognito Mode disables download features</span>
+                    <br />
+                    (Firefox bug <a id="bug-link" class="alert-warning alert-link" href="https://bugzilla.mozilla.org/show_bug.cgi?id=1329304">#1329304</a>)</p>
+                </div>
+            </div>
+        </ul>
+    </body>
+</html>
