@@ -3,10 +3,13 @@ name: Deployment
 concurrency: production
 
 on:
+  workflow_dispatch:
   push:
     tags:
       - "v*"
     branches:
+      - "main"
+      - "master"
       - "develop"
       - "github-actions"
       - "gha-*"
