@@ -517,7 +517,7 @@ jobs:
 
     - name: Setup NSIS
       if: ${{ matrix.os == 'windows-latest' }}
-      uses: dsdude123/setup-makensis@v1.1.2
+      run: choco install nsis
 
     - name: Create NSIS installer
       if: ${{ matrix.os == 'windows-latest' }}
