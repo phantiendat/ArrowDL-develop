@@ -555,6 +555,8 @@ jobs:
     name: "Deploy"
     runs-on: ubuntu-latest  # Ubuntu seems faster than Windows
     environment: production
+    permissions:
+      contents: write
     steps:
     - name: Prepare Directories
       shell: python
