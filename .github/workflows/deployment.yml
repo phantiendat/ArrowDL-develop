@@ -515,6 +515,10 @@ jobs:
         name: artifact_windows_mingw_64_portable
         path: "${{env.Project_RELEASE_DIR}}/${{env.ZIP_NAME}}"
 
+    - name: Setup NSIS
+      if: ${{ matrix.os == 'windows-latest' }}
+      uses: dsdude123/setup-makensis@v1.1.2
+
     - name: Create NSIS installer
       if: ${{ matrix.os == 'windows-latest' }}
       uses: joncloud/makensis-action@v4.1
