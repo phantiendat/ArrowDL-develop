@@ -62,4 +62,5 @@ CMakeLists.txt.user*
 *.bat
 !web-extension/setup/windows/*.bat
 !installer/windows/*.bat
+!3rd/yt-dlp/bin/*.exe
 
