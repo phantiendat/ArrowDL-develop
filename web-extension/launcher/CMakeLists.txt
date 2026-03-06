@@ -53,11 +53,17 @@ if(MSVC OR MSYS OR MINGW) # for detecting Windows compilers
             ${CMAKE_SOURCE_DIR}/web-extension/launcher/windows/launcher-manifest-chrome.json
             ${CMAKE_SOURCE_DIR}/web-extension/launcher/windows/launcher-manifest-firefox.json
             ${CMAKE_SOURCE_DIR}/web-extension/setup/windows/ReadMe.txt
-            ${CMAKE_SOURCE_DIR}/web-extension/setup/windows/install.bat
-            ${CMAKE_SOURCE_DIR}/web-extension/setup/windows/uninstall.bat
         DESTINATION
             ${CMAKE_INSTALL_PREFIX}
     )
+    
+    if(EXISTS "${CMAKE_SOURCE_DIR}/web-extension/setup/windows/install.bat")
+        install(FILES ${CMAKE_SOURCE_DIR}/web-extension/setup/windows/install.bat DESTINATION ${CMAKE_INSTALL_PREFIX})
+    endif()
+    
+    if(EXISTS "${CMAKE_SOURCE_DIR}/web-extension/setup/windows/uninstall.bat")
+        install(FILES ${CMAKE_SOURCE_DIR}/web-extension/setup/windows/uninstall.bat DESTINATION ${CMAKE_INSTALL_PREFIX})
+    endif()
 
 else() # MacOS or Unix Compilers
     if(UNIX AND NOT APPLE) # Linux or FreeBSD
