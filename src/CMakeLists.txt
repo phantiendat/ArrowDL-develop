@@ -191,28 +191,32 @@ if(MSVC OR MSYS OR MINGW) # for detecting Windows compilers
     )
 
     if(MSYS OR MINGW)
-        # Hack to find libGCC
+        # Hack to find libGCC and Mingw DLLs
         #
         # Mingw libGCC comes with 3 flavors of exception handling
         # - DW2     Dwarf-2 Exception Handling      (32-bit only)
         # - SJLJ    SetJump LongJump                (both 32-bit & 64-bit)
         # - SEH     Structured Exception Handling   (64-bit)
         #
-        if (EXISTS ${QT_DLL_DIR}/libgcc_s_dw2-1.dll)
-            set(libgcc "${QT_DLL_DIR}/libgcc_s_dw2-1.dll")
+        get_filename_component(COMPILER_DIR ${CMAKE_CXX_COMPILER} DIRECTORY)
+        set(GCC_DLL_DIR "${COMPILER_DIR}")
+        if (NOT EXISTS "${GCC_DLL_DIR}/libgcc_s_seh-1.dll" AND NOT EXISTS "${GCC_DLL_DIR}/libgcc_s_dw2-1.dll")
+            set(GCC_DLL_DIR "${QT_DLL_DIR}")
+        endif()
+
+        if (EXISTS "${GCC_DLL_DIR}/libgcc_s_dw2-1.dll")
+            set(libgcc "${GCC_DLL_DIR}/libgcc_s_dw2-1.dll")
+        elseif(EXISTS "${GCC_DLL_DIR}/libgcc_s_seh-1.dll")
+            set(libgcc "${GCC_DLL_DIR}/libgcc_s_seh-1.dll")
         else()
-            if (EXISTS ${QT_DLL_DIR}/libgcc_s_seh-1.dll)
-                set(libgcc "${QT_DLL_DIR}/libgcc_s_seh-1.dll")
-            else()
-                message(FATAL_ERROR "Can't find LibGCC in path ${QT_DLL_DIR}")
-            endif()
+            message(FATAL_ERROR "Can't find LibGCC in path ${GCC_DLL_DIR}")
         endif()
 
         install(
             FILES
                 ${libgcc}
-                ${QT_DLL_DIR}/libstdc++-6.dll
-                ${QT_DLL_DIR}/libwinpthread-1.dll
+                ${GCC_DLL_DIR}/libstdc++-6.dll
+                ${GCC_DLL_DIR}/libwinpthread-1.dll
             DESTINATION
                 ${CMAKE_INSTALL_PREFIX}
         )
