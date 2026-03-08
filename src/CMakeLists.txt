@@ -483,6 +483,37 @@ else() # MacOS or Unix Compilers
 
 endif()
 
+## FFmpeg
+if(MSVC OR MSYS OR MINGW) # for detecting Windows compilers
+
+    install(
+        FILES
+            ${CMAKE_SOURCE_DIR}/3rd/ffmpeg/bin/ffmpeg.exe
+            ${CMAKE_SOURCE_DIR}/3rd/ffmpeg/bin/ffprobe.exe
+        DESTINATION
+            ${CMAKE_INSTALL_PREFIX}
+    )
+
+else() # MacOS or Unix Compilers
+
+    install(
+        FILES
+            ${CMAKE_SOURCE_DIR}/3rd/ffmpeg/bin/ffmpeg
+            ${CMAKE_SOURCE_DIR}/3rd/ffmpeg/bin/ffprobe
+        PERMISSIONS
+            OWNER_EXECUTE
+            OWNER_WRITE
+            OWNER_READ
+            GROUP_READ
+            GROUP_EXECUTE
+            WORLD_READ
+            WORLD_EXECUTE
+        DESTINATION
+            ${CMAKE_INSTALL_PREFIX}
+    )
+
+endif()
+
 ## Desktop Shortcut
 if(MSVC OR MSYS OR MINGW) # for detecting Windows compilers
 

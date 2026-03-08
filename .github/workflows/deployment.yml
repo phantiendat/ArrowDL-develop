@@ -391,6 +391,16 @@ jobs:
       shell: bash
       run: cd "${{env.LibtorrentRasterbar_INSTALL_DIR}}" && ls -alR
 
+    - name: Download FFmpeg (Windows)
+      if: ${{ matrix.os == 'windows-latest' }}
+      working-directory: "${{env.Project_SOURCE_DIR}}/3rd/ffmpeg"
+      run: pwsh ./download_ffmpeg.ps1
+
+    - name: Download FFmpeg (Linux)
+      if: ${{ matrix.os == 'ubuntu-latest' }}
+      working-directory: "${{env.Project_SOURCE_DIR}}/3rd/ffmpeg"
+      run: bash ./download_ffmpeg.sh
+
     - name: Configure Project
       env:
         Boost_ROOT: ${{ steps.install-boost.outputs.Boost_ROOT }}
