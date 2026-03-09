@@ -243,12 +243,13 @@ void Theme::applyTheme(const QMap<QString, QVariant> &map)
                 : QLatin1String("default")
             );
     }
+    qApp->setStyle(new CustomStyle(platformStyle)); // emits QEvent::StyleChange
+
     auto palette = qApp->style()->standardPalette();
     if (isDarkMode) {
         polishDark(palette);
     }
     qApp->setPalette(palette); // emits QEvent::PaletteChange
-    qApp->setStyle(new CustomStyle(platformStyle)); // emits QEvent::StyleChange
 }
 
 /******************************************************************************

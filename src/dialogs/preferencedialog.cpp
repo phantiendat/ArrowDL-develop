@@ -31,6 +31,7 @@
 #include <QtCore/QDir>
 #include <QtCore/QSettings>
 #include <QtCore/QSignalBlocker>
+#include <QtCore/QTimer>
 #include <QtGui/QAction>
 #include <QtGui/QCloseEvent>
 #include <QtGui/QTextBlock>
@@ -389,7 +390,9 @@ void PreferenceDialog::resetLanguage()
 
 void PreferenceDialog::themeChanged()
 {
-    Theme::applyTheme(ui->themeWidget->theme());
+    QTimer::singleShot(500, this, [this]() {
+        Theme::applyTheme(ui->themeWidget->theme());
+    });
 }
 
 void PreferenceDialog::resetTheme()
