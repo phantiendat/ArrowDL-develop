@@ -155,6 +155,13 @@ void JobStream::onFinished()
 
             // bool commited = file()->commit();
             m_file->cancel();       /* HACK */
+
+            QFileInfo fi(localFullFileName());
+            if (fi.exists() && fi.size() > 0) {
+                setBytesReceived(fi.size());
+                setBytesTotal(fi.size());
+            }
+
             bool commited = true;   /* HACK */
             preFinish(commited);
         }
