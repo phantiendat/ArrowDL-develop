@@ -20,6 +20,8 @@
 #include <Core/Stream>
 #include <Core/ResourceItem>
 
+#include <QtCore/QFileInfo>
+
 JobStream::JobStream(QObject *parent, ResourceItem *resource)
     : AbstractJob(parent, resource)
     , m_stream(nullptr)
