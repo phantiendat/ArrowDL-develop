@@ -46,6 +46,7 @@ static bool s_youtubedl_last_modified_time_enabled = true;
 static QString s_youtubedl_user_agent = {};
 static int s_youtubedl_socket_type = 0;
 static int s_youtubedl_socket_timeout = 0;
+static QString s_youtubedl_proxy = {};
 
 static bool areEqual(const QString &s1, const QString &s2)
 {
@@ -127,7 +128,12 @@ void Stream::setConnectionProtocol(int index)
 
 void Stream::setConnectionTimeout(int secs)
 {
-    s_youtubedl_socket_timeout = secs > 0 ? secs : 0;
+    s_youtubedl_socket_timeout = secs;
+}
+
+void Stream::setProxy(const QString &proxy)
+{
+    s_youtubedl_proxy = proxy;
 }
 
 /******************************************************************************
@@ -384,6 +390,9 @@ QStringList Stream::arguments() const
     }
     if (s_youtubedl_socket_timeout > 0) {
         arguments << QLatin1String("--socket-timeout") << QString::number(s_youtubedl_socket_timeout);
+    }
+    if (!s_youtubedl_proxy.isEmpty()) {
+        arguments << QLatin1String("--proxy") << s_youtubedl_proxy;
     }
     switch (s_youtubedl_socket_type) {
     case 1: arguments << QLatin1String("--force-ipv4"); break;

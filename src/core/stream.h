@@ -355,6 +355,7 @@ public:
     static void setUserAgent(const QString &userAgent);
     static void setConnectionProtocol(int index);
     static void setConnectionTimeout(int secs);
+    static void setProxy(const QString &proxy);
 
     static bool matchesHost(const QString &host, const QStringList &regexHosts);
 

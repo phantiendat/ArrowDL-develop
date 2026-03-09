@@ -51,6 +51,28 @@ void StreamManager::onSettingsChanged()
         Stream::setUserAgent(m_settings->httpUserAgent());
         Stream::setConnectionProtocol(m_settings->connectionProtocol());
         Stream::setConnectionTimeout(m_settings->connectionTimeout());
+
+        QString proxyStr;
+        int proxyType = m_settings->proxyType();
+        if (proxyType > 0) { // SOCKS5 or HTTP
+            QString scheme = (proxyType == 1) ? QLatin1String("socks5://") : QLatin1String("http://");
+            QString auth;
+            QString user = m_settings->proxyUser();
+            QString pass = m_settings->proxyPassword();
+            if (!user.isEmpty()) {
+                auth = user;
+                if (!pass.isEmpty()) {
+                    auth += QLatin1Char(':') + pass;
+                }
+                auth += QLatin1Char('@');
+            }
+            QString host = m_settings->proxyHostName();
+            int port = m_settings->proxyPort();
+            if (!host.isEmpty()) {
+                proxyStr = scheme + auth + host + QLatin1Char(':') + QString::number(port);
+            }
+        }
+        Stream::setProxy(proxyStr);
     }
 }
 
