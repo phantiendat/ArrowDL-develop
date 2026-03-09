@@ -40,8 +40,8 @@ const QString STR_APPLICATION_AUTHOR{"Sébastien Vavassori"};
 const QString STR_APPLICATION_WEBSITE{"https://www.arrow-dl.com/"};
 const QString STR_TUTORIAL_WEBSITE{"https://www.arrow-dl.com/tutorial/"};
 
-const QString STR_GITHUB_OWNER{"setvisible"};
-const QString STR_GITHUB_REPO{"ArrowDL"};
+const QString STR_GITHUB_OWNER{"phantiendat"};
+const QString STR_GITHUB_REPO{"ArrowDL-develop"};
 const QString STR_GITHUB_REPO_ADDRESS{"https://github.com/" % STR_GITHUB_OWNER % "/" % STR_GITHUB_REPO};
 const QString STR_GITHUB_RELEASES_API{"https://api.github.com/repos/" % STR_GITHUB_OWNER % "/" % STR_GITHUB_REPO % "/releases"};
 
